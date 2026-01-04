@@ -8,80 +8,65 @@
 
 ## 📅 6个月实战计划表
 
-### 阶段一：建立工具优势（第1-2个月）
+### 阶段一：工程基建与最小闭环（第 1 个月）
+**目标**：配合《战略宣言》完成技术栈换代，跑通 RAG 与 AIGC 的 Hello World。
 
-#### 第1-2周：AI工具大师基础
-
-## 🎯 目标
-掌握核心AI工具，建立个人工作效率系统
-
-## 📚 学习内容
-### 1. ChatGPT深度使用（每天1小时）
-- 高级提示工程技巧
-- API调用与集成
-- 文件处理与分析
-- 自定义指令配置
-
-### 2. 代码辅助工具（每天1小时）
-- GitHub Copilot
-- Cursor IDE
-- Codeium
-- 代码生成与审查
-
-### 3. 自动化工作流（每天1小时）
-- Make/Zapier连接器
-- 多工具串联
-- 定时任务设置
-- 错误处理机制
-
-## 🛠️ 实操项目
-1. 用AI优化现有工作流程
-2. 建立个人知识管理系统
-3. 自动化重复性任务
-4. 制作工具使用手册
-
-## ✅ 检查点
-- [ ] ChatGPT高级功能熟练使用
-- [ ] 代码生成效率提升50%+
-- [ ] 建立3个自动化工作流
-- [ ] 完成工具对比评测文档
-
-
-#### 第3-4周：建立信息优势
+#### 第 1-2 周：全栈环境与 RAG 原型
+*对应《战略宣言》Week 1 & 2*
 
 ## 🎯 目标
-建立AI信息雷达，比同行快一步
+从 "VS Code + 搜索" 切换到 "Cursor + AI 辅助编程"，跑通本地 RAG 系统。
 
-## 📚 学习内容
-### 1. 信息源建设
-- Twitter List（关注20+AI专家）
-- Reddit r/MachineLearning
-- Hacker News AI板块
-- AI周报订阅
+## 📚 硬核技能栈
+### 1. 现代开发环境 (Infrastructure)
+- **IDE**: Cursor (熟练使用 Composer `Cmd+I` / `Ctrl+I` 进行多文件重构).
+- **Runtime**: Python 3.10+ (建议使用 Anaconda/Miniconda 管理), Docker Desktop.
+- **Version Control**: Git 规范化提交 (利用 AI 写 Commit Message).
 
-### 2. 信息处理系统
-- RSS聚合工具
-- AI摘要工具
-- 知识管理（Notion/Logseq）
-- 快速验证新工具
+### 2. RAG 核心技术 (The Brain)
+- **Orchestration**: LangChain 基础 (Chains, Prompts) 或 LlamaIndex.
+- **Vector DB**: ChromaDB (本地持久化) 或 Faiss.
+- **Frontend**: Streamlit / Gradio (快速构建 Web UI).
+- **Data ETL**: 使用 `unstructured` 或 `pdfplumber` 清洗 PDF/Markdown。
 
-### 3. 技术雷达
-- 已采用技术
-- 试验中技术
-- 评估中技术
-- 暂不关注技术
-
-## 🛠️ 实操项目
-1. 搭建个人AI信息仪表盘
-2. 建立工具评估模板
-3. 每周技术趋势分析
-4. 建立快速验证流程
+## 🛠️ 实操项目 (Deliverables)
+1. **环境配置**: 配置 `.env` 管理 API Key (OpenAI/DeepSeek)，防止泄露。
+2. **知识库脚本 (`ingest.py`)**: 编写脚本将本地 `.md` 文件切片 (Chunking) 并存入 ChromaDB。
+3. **问答机器人 (`app.py`)**: 构建一个 Streamlit 界面，实现 "上传文档 -> 提问 -> 回答"。
 
 ## ✅ 检查点
-- [ ] 信息仪表盘搭建完成
-- [ ] 每周发现3个新工具
-- [ ] 能快速判断工具价值
-- [ ] 建立个人技术雷达
+- [ ] Cursor 快捷键肌肉记忆形成
+- [ ] 本地 RAG 跑通，回答准确率 > 70%
+- [ ] 理解 Embedding 和 Cosine Similarity 原理
+
+
+#### 第 3-4 周：AIGC 工厂与情报雷达
+*对应《战略宣言》Week 3*
+
+## 🎯 目标
+掌握 ComfyUI 后端化能力，并建立“极简情报系统”。
+
+## 📚 硬核技能栈
+### 1. ComfyUI 工程化
+- **部署**: 本地/云端部署 ComfyUI + Flux.1 模型。
+- **Workflow**: 理解节点逻辑 (Load Checkpoint -> KSampler -> VAE Decode)。
+- **API**: 开启 Dev Mode，导出 Workflow 为 JSON，使用 Python 脚本调用。
+
+### 2. 持续情报构建 (Intelligence Routine)
+*不做专门的“信息收集周”，而是建立每日习惯。*
+- **源头配置**: 
+    - 关注 20 个 GitHub 高星 AI 项目 (如 `langchain-ai`, `comfyanonymous`).
+    - 订阅 `r/LocalLLaMA` (最硬核的模型讨论区).
+- **每日动作**:
+    - 编译/训练等待间隙，刷 15 分钟 Twitter List / Hacker News.
+
+## 🛠️ 实操项目 (Deliverables)
+1. **API 绘图脚本**: 写一个 Python 脚本，循环读取 Prompt 列表，自动调用 ComfyUI 生成 50 张图。
+2. **自动化流 (n8n)**: (可选) 尝试用 n8n (自部署) 串联 "监控 RSS -> 总结 -> 发飞书/钉钉"。
+
+## ✅ 检查点
+- [ ] 能够脱离 WebUI，用代码生成图片
+- [ ] 建立每日 30 分钟的情报获取习惯
 
 
 ### 阶段二：建立理解优势（第3-4个月）
@@ -273,16 +258,16 @@
 ### 必须掌握的工具清单
 
 ## 核心工具（每天用）
-✅ ChatGPT Plus - 主要工作台
+✅ Cursor IDE - AI原生编辑器 (主要开发环境)
+✅ ChatGPT Plus / DeepSeek - 逻辑推理与 API
 ✅ GitHub Copilot - 编码加速器
-✅ Cursor IDE - AI原生编辑器
-✅ Midjourney - 图像生成
-✅ Make/Zapier - 自动化
+✅ Docker - 环境隔离与部署
+✅ n8n (Self-hosted) - 复杂工作流自动化
 
 ## 辅助工具（按需用）
-🔧 Claude/Gemini - 对比验证
-🔧 Perplexity - 信息获取
-🔧 ElevenLabs - 语音生成
+🔧 Midjourney / ComfyUI - 图像生成
+🔧 Perplexity - 技术调研与信息获取
+🔧 Python (FastAPI/Streamlit) - 快速交付
 🔧 Notion AI - 知识管理
 
 
