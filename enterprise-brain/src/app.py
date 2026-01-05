@@ -2,17 +2,21 @@ import streamlit as st
 import os
 import glob
 import sys
+import time
+import hashlib
+import uuid
 
 # 将 src 目录加入 Python 路径，以便导入 ingest 模块
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# 引入工厂
 try:
+    from db_factory import DBFactory
     from ingest import ingest_docs
 except ImportError:
-    # Fallback if running from root
+    from src.db_factory import DBFactory
     from src.ingest import ingest_docs
 
-from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
@@ -35,37 +39,29 @@ DATA_DIR = "data"
 # 确保 data 目录存在
 os.makedirs(DATA_DIR, exist_ok=True)
 
-import chromadb
-
 @st.cache_resource
 def load_chain():
     """
     初始化 RAG 链 (Embedding + VectorStore + LLM)
-    使用 @st.cache_resource 避免每次刷新都重新加载模型
+    使用工厂模式解耦数据库实现
     """
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     
-    # 切换为 HttpClient 模式
-    client = chromadb.HttpClient(
-        host=os.getenv("CHROMA_SERVER_HOST", "localhost"),
-        port=os.getenv("CHROMA_SERVER_PORT", "8000")
-    )
+    # 1. 工厂生产向量库 (Chroma 或 Pgvector，由 .env 决定)
+    vector_store = DBFactory.get_vector_store(embeddings)
     
-    vector_store = Chroma(
-        client=client,
-        collection_name="enterprise_docs",
-        embedding_function=embeddings
-    )
+    # 2. 获取语义缓存 (目前固定为 Chroma)
+    cache_collection = DBFactory.get_cache_collection(embeddings)
     
     llm = ChatOpenAI(
         model=os.getenv("LLM_MODEL_NAME", "deepseek-chat"),
         api_key=os.getenv("DEEPSEEK_API_KEY"),
         base_url=os.getenv("DEEPSEEK_BASE_URL"),
         temperature=0.1,
-        streaming=True # 开启流式
+        streaming=True
     )
     
-    return vector_store, llm
+    return vector_store, llm, cache_collection, embeddings
 
 def main():
     st.title("🧠 Enterprise Brain (RAG System)")
@@ -76,7 +72,7 @@ def main():
         st.header("📂 Knowledge Base")
         
         # 1. 文件列表
-        files = glob.glob(os.path.join(DATA_DIR, "*.*"))
+        files = glob.glob(os.path.join(DATA_DIR, "*.* المحتوى"))
         if files:
             st.info(f"Loaded {len(files)} documents")
             with st.expander("📄 View File List"):
@@ -91,7 +87,7 @@ def main():
         st.subheader("📥 Add Documents")
         uploaded_files = st.file_uploader(
             "Upload .md or .txt", 
-            type=["md", "txt"], 
+            type=["md", "txt"],
             accept_multiple_files=True
         )
         
@@ -153,75 +149,105 @@ def main():
         with st.chat_message("user"):
             st.markdown(prompt)
 
-import time
-
-# ... imports ...
-
-# ... existing code ...
-
         # 生成 AI 回答
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             
             # --- RAG 逻辑开始 ---
             try:
-                vector_store, llm = load_chain()
+                # 获取组件
+                vector_store, llm, cache_collection, embeddings = load_chain()
                 
-                # 1. 计时：检索阶段
-                start_time = time.time()
-                with st.spinner("🔍 Searching..."):
-                    results = vector_store.similarity_search(prompt, k=3)
-                retrieval_time = time.time() - start_time
+                # Step 1: 语义缓存检索 (Semantic Cache Lookup)
+                start_cache = time.time()
                 
-                if not results:
-                    full_response = "⚠️ 知识库中没有找到相关信息，请尝试上传相关文档。"
-                    message_placeholder.markdown(full_response)
-                else:
-                    context_text = "\n\n---\n\n".join([doc.page_content for doc in results])
+                # 计算问题向量
+                prompt_vector = embeddings.embed_query(prompt)
+                
+                # 在缓存库中搜最相似的 1 条
+                cache_results = cache_collection.query(
+                    query_embeddings=[prompt_vector],
+                    n_results=1
+                )
+                
+                cache_hit = False
+                # 判定阈值：Chroma 默认使用 L2 距离，越小越相似
+                # 0.2 大约对应余弦相似度 0.9+，非常严格，防止答非所问
+                CACHE_THRESHOLD = 0.2
+                
+                if cache_results['ids'] and cache_results['distances'][0][0] < CACHE_THRESHOLD:
+                    cached_answer = cache_results['metadatas'][0][0]['answer']
+                    message_placeholder.markdown(cached_answer + " (🚀 Semantic Cache)")
+                    full_response = cached_answer
+                    cache_hit = True
                     
-                    # 构建 Prompt
-                    prompt_template = ChatPromptTemplate.from_template("""
-                    你是一个资深的 AI 战略顾问。请基于以下的【上下文信息】，回答用户的【问题】。
-                    
-                    规则：
-                    1. 引用上下文中的关键数据或观点来支持你的回答。
-                    2. 使用 Markdown 格式优化排版（如列表、粗体）。
-                    3. 如果上下文中没有答案，请明确告知。
-
-                    【上下文信息】：
-                    {context}
-
-                    【问题】：
-                    {question}
-                    """)
-                    
-                    chain = prompt_template | llm
-                    
-                    # 2. 计时：生成阶段
-                    start_gen = time.time()
-                    full_response = ""
-                    for chunk in chain.stream({"context": context_text, "question": prompt}):
-                        if chunk.content:
-                            full_response += chunk.content
-                            message_placeholder.markdown(full_response + "▌")
-                    
-                    generation_time = time.time() - start_gen
-                    
-                    message_placeholder.markdown(full_response)
-                    
-                    # 3. 显示性能指标
                     st.divider()
-                    cols = st.columns(4)
-                    cols[0].caption(f"⏱️ Retrieval: **{retrieval_time:.3f}s**")
-                    cols[1].caption(f"🧠 Generation: **{generation_time:.3f}s**")
-                    cols[2].caption(f"⚡ Total: **{retrieval_time + generation_time:.3f}s**")
+                    st.caption(f"⚡ Semantic Cache Hit (Distance: {cache_results['distances'][0][0]:.4f})")
+                
+                # Step 2: 缓存未命中，走 RAG
+                if not cache_hit:
+                    # ... 原有 RAG 检索逻辑 ...
+                    start_time = time.time()
+                    with st.spinner("🔍 Searching..."):
+                        results = vector_store.similarity_search(prompt, k=3)
+                    retrieval_time = time.time() - start_time
                     
-                    # 显示引用来源 (Source Expander)
-                    with st.expander("📚 View Sources"):
-                        for i, doc in enumerate(results):
-                            source = doc.metadata.get('source', 'Unknown')
-                            st.markdown(f"**Source {i+1}**: `{os.path.basename(source)}`")
-                            st.caption(doc.page_content[:200] + "...")
+                    if not results:
+                        full_response = "⚠️ 知识库中没有找到相关信息，请尝试上传相关文档。"
+                        message_placeholder.markdown(full_response)
+                    else:
+                        context_text = "\n\n---\n\n".join([doc.page_content for doc in results])
+                        
+                        # ... Prompt 构建 ...
+                        prompt_template = ChatPromptTemplate.from_template("""
+                        你是一个资深的 AI 战略顾问。请基于以下的【上下文信息】，回答用户的【问题】。
+                        
+                        规则：
+                        1. 引用上下文中的关键数据或观点来支持你的回答。
+                        2. 使用 Markdown 格式优化排版（如列表、粗体）。
+                        3. 如果上下文中没有答案，请明确告知。
+
+                        【上下文信息】：
+                        {context}
+
+                        【问题】：
+                        {question}
+                        """)
+                        
+                        chain = prompt_template | llm
+                        
+                        start_gen = time.time()
+                        full_response = ""
+                        for chunk in chain.stream({"context": context_text, "question": prompt}):
+                            if chunk.content:
+                                full_response += chunk.content
+                                message_placeholder.markdown(full_response + "▌")
+                        
+                        generation_time = time.time() - start_gen
+                        message_placeholder.markdown(full_response)
+                        
+                        # Step 3: 写入语义缓存
+                        # 使用 uuid 作为 ID
+                        cache_id = str(uuid.uuid4())
+                        cache_collection.add(
+                            ids=[cache_id],
+                            embeddings=[prompt_vector], # 复用刚才算的向量
+                            metadatas=[{"answer": full_response, "question": prompt}]
+                        )
+                        
+                        st.divider()
+                        cols = st.columns(4)
+                        cols[0].caption(f"⏱️ Retrieval: **{retrieval_time:.3f}s**")
+                        cols[1].caption(f"🧠 Generation: **{generation_time:.3f}s**")
+                        cols[2].caption(f"⚡ Total: **{retrieval_time + generation_time:.3f}s**")
+                        
+                        # ... Source 显示 ...
+                        with st.expander("📚 View Sources"):
+                            for i, doc in enumerate(results):
+                                source = doc.metadata.get('source', 'Unknown')
+                                st.markdown(f"**Source {i+1}**: `{os.path.basename(source)}`")
+                                st.caption(doc.page_content[:200] + "...")
+
             except Exception as e:
                 full_response = f"❌ Error: {str(e)}"
                 message_placeholder.error(full_response)

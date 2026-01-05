@@ -19,7 +19,7 @@ services:
   # 2. 你的应用 (作为客户端)
   enterprise-brain:
     build: .
-    image: enterprise-brain:v1.1
+    image: enterprise-brain:v1.2
     container_name: enterprise_brain_v1
     restart: unless-stopped
     ports:

@@ -18,7 +18,19 @@ import chromadb
 def ingest_docs():
     print(f"📂 Loading documents from {DATA_DIR}...")
     
-    # ... 原有加载逻辑不变 ...
+    documents = []
+    for f in files:
+        try:
+            loader = TextLoader(f, encoding='utf-8')
+            docs = loader.load()
+            # 丰富元数据：添加文件名、文件路径
+            for doc in docs:
+                doc.metadata["source"] = f
+                doc.metadata["filename"] = os.path.basename(f)
+            documents.extend(docs)
+            print(f"   - Loaded: {f}")
+        except Exception as e:
+            print(f"   ❌ Failed to load {f}: {e}")
 
     # 3. 初始化 Embedding 模型
     print("🧠 Initializing embedding model (HuggingFace)...")
