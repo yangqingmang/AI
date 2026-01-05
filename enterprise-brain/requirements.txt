@@ -8,3 +8,5 @@ python-dotenv
 chromadb
 sentence-transformers
 streamlit
+langchain-huggingface
+sentence-transformers

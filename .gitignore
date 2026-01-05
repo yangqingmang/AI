@@ -1,0 +1,10 @@
+.venv/
+.env
+__pycache__/
+*.pyc
+.idea/
+.vscode/
+dist/
+release.zip
+*.tar.gz
+enterprise-brain/chroma_db/
