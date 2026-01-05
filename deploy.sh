@@ -12,6 +12,15 @@ WARN='\033[1;33m'
 ERROR='\033[0;31m'
 NC='\033[0m'
 
+# 0. 同步最新代码
+echo -e "${INFO}>>> Checking for updates...${NC}"
+if [ -d ".git" ]; then
+    echo -e "${INFO}Pulling latest code from remote (branch: master)...${NC}"
+    git pull origin master
+else
+    echo -e "${WARN}Not a git repository. Skipping code update.${NC}"
+fi
+
 echo -e "${INFO}>>> Starting Enterprise Brain Deployment...${NC}"
 
 # 1. 环境检查: Docker
