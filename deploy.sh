@@ -17,7 +17,22 @@ echo -e "${INFO}>>> Starting Enterprise Brain Deployment...${NC}"
 # 1. 环境检查: Docker
 if ! [ -x "$(command -v docker)" ]; then
     echo -e "${WARN}Workflow: Docker not found. Installing...${NC}"
-    curl -fsSL https://get.docker.com | sh
+    # 原官方脚本安装方式 (因国内网络连接 get.docker.com 不稳定，已注释)
+    # curl -fsSL https://get.docker.com | sh
+    
+    # 针对国内网络环境的优化安装方案
+    if [ -f /etc/redhat-release ]; then
+        # Rocky Linux / CentOS / RHEL (使用阿里云 yum 源)
+        echo -e "${INFO}Detected RHEL-based system. Using Aliyun mirror for installation...${NC}"
+        sudo dnf -y install dnf-plugins-core
+        sudo dnf config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+        sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    else
+        # Ubuntu / Debian 等其他系统 (尝试使用阿里云镜像参数)
+        # 如果 get.docker.com 完全无法访问，请手动替换为 apt/yum 源安装
+        curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
+    fi
+    
     systemctl enable --now docker
 fi
 
@@ -26,6 +41,26 @@ if docker compose version >/dev/null 2>&1; then
     DOCKER_COMPOSE="docker compose"
 else
     DOCKER_COMPOSE="docker-compose"
+fi
+
+# 2.5. 配置 Docker 镜像加速 (针对国内网络)
+if [ ! -f /etc/docker/daemon.json ]; then
+    echo -e "${INFO}>>> Configuring Docker Registry Mirrors for China...${NC}"
+    mkdir -p /etc/docker
+    cat > /etc/docker/daemon.json <<EOF
+{
+  "registry-mirrors": [
+    "https://docker.m.daocloud.io",
+    "https://docker.1panel.live",
+    "https://hub.rat.dev"
+  ]
+}
+EOF
+    systemctl daemon-reload
+    systemctl restart docker
+    echo -e "${SUCCESS}Docker mirrors configured.${NC}"
+else
+    echo -e "${INFO}Docker daemon.json already exists. Skipping mirror config.${NC}"
 fi
 
 # 3. 配置密钥 (交互式)
