@@ -1,88 +1,65 @@
-# 🧠 Enterprise Brain (RAG System)
+# 🧠 Enterprise Brain (Agentic RAG System)
 
-> **定位**：企业级 RAG 知识库解决方案，支持私有化部署、模型热切换与高并发检索。
-> **核心优势**：架构解耦、语义缓存、一键交付。
-
----
-
-## 🏗 系统架构 (v1.2)
-
-本项目采用 **Client/Server 分离架构**，支持水平扩展与组件热插拔。
-
-| 组件 | 技术栈 | 说明 |
-| :--- | :--- | :--- |
-| **LLM Engine** | `LangChain` + `OpenAI SDK` | 支持 DeepSeek、ChatGPT、vLLM (Llama3/Qwen) 等任意兼容模型。 |
-| **Embedding** | `all-MiniLM-L6-v2` | 本地 CPU 推理，数据不出内网。 |
-| **Vector DB** | `ChromaDB` (Server Mode) | 独立容器部署，支持持久化与并发读写。可通过配置切换至 `Pgvector`。 |
-| **Caching** | `Semantic Cache` (Chroma) | 基于向量相似度的意图缓存，大幅降低 Token 消耗与延迟。 |
-| **Frontend** | `Streamlit` | 交互式 Web 界面，支持文件上传与多轮对话。 |
+> **定位**：企业级自主智能体解决方案。不仅是知识库，更是具备**联网搜索、代码执行、文件管理**能力的 AI 员工。
+> **核心优势**：架构解耦、语义缓存、多模态工具链。
 
 ---
 
-## 🚀 快速部署 (ToB Delivery)
+## 🌟 核心特性 (v1.3)
+
+### 1. 双模态引擎 (Dual Mode)
+*   **🌱 Free Mode (纯 RAG)**：专注内部知识库问答，安全、可控。
+*   **🚀 Pro Mode (Agent)**：解锁自主能力，AI 可自动判断是查库、搜网、还是写代码分析数据。
+
+### 2. 角色分离 (Multi-Page UI)
+*   **用户端 (`App`)**：极简聊天界面，无干扰。
+*   **管理端 (`Admin`)**：独立后台，负责文件上传、索引重建、系统维护。
+
+### 3. 企业级架构
+*   **Client/Server**：向量库独立容器化，支持水平扩展。
+*   **Semantic Cache**：基于向量相似度的意图缓存，响应速度提升 100 倍。
+*   **Model Agnostic**：支持 DeepSeek, OpenAI, vLLM 等任意兼容模型热切换。
+
+---
+
+## 🚀 快速部署
 
 ### 1. 环境准备
 确保服务器已安装 `Docker` 和 `Docker Compose`。
 
-### 2. 配置 (关键一步)
-复制模板并填入你的 Key 或内网模型地址。
-
+### 2. 配置
 ```bash
 cp .env.example .env
-vi .env
+# 编辑 .env 填入 API Key
 ```
 
-**配置项说明：**
-```ini
-# --- 模型配置 ---
-DEEPSEEK_API_KEY=sk-xxxxxx          # 或是 "empty" (如果是本地无鉴权模型)
-DEEPSEEK_BASE_URL=https://api.deepseek.com  # 或 http://192.168.1.10:8000/v1
-LLM_MODEL_NAME=deepseek-chat        # 或 custom-qwen-72b
+### 3. 启动
+使用自动化脚本（自动处理后台服务与前台应用）：
 
-# --- 数据库配置 ---
-VECTOR_STORE_TYPE=chroma            # 可选: chroma, pgvector
-CHROMA_SERVER_HOST=chroma-server    # Docker 服务名
-CHROMA_SERVER_PORT=8000
-```
-
-### 3. 一键启动
-使用我们提供的自动化脚本（支持 Linux/Windows WSL）：
-
-```bash
-bash deploy.sh
-```
-
-或者手动启动：
-```bash
-docker-compose up -d --build
-```
+*   **Windows**: 双击 `run_local.bat` 或运行 `.\run_local.ps1`
+*   **Linux/Mac**: 运行 `bash run_local.sh`
+*   **Docker 生产部署**: `bash deploy.sh`
 
 访问地址：`http://localhost:8501`
 
 ---
 
-## 🛠 开发指南
+## 📚 使用指南
 
-### 本地调试 (Local Development)
-由于代码已升级为 **Client/Server 架构**，在本地不使用 Docker 运行时，**必须**手动启动一个 ChromaDB 服务端。
+### 普通用户
+直接在主页提问。
+*   *示例*：“公司最新的报销政策是什么？”
 
-1.  **启动向量数据库 (Terminal 1)**：
-    ```powershell
-    # 激活虚拟环境后运行
-    chroma run --path ./chroma_db --port 8000
-    ```
-    *保持此窗口开启，不要关闭。*
+### 开启 Pro 模式 (Agent)
+1.  在左侧边栏勾选 **Enable Pro Mode**。
+2.  *示例 1 (联网)*：“搜索一下 DeepSeek 今天的股价新闻。”
+3.  *示例 2 (代码)*：“计算 1 到 100 的斐波那契数列总和。”
+4.  *示例 3 (文件)*：“把刚才的分析结果保存为 report.txt。”
 
-2.  **启动 Web 应用 (Terminal 2)**：
-    ```powershell
-    # 确保 .env 中 CHROMA_SERVER_HOST=localhost
-    streamlit run src/app.py
-    ```
-
-### 架构升级
-详见 [docs/ENTERPRISE_GUIDE.md](docs/ENTERPRISE_GUIDE.md)，包含：
-*   如何切换到 **PostgreSQL (pgvector)** 以支持千万级数据。
-*   如何集成 **GPTCache** 实现更高级的缓存策略。
+### 管理员
+点击左侧边栏的 **> 箭头**，选择 **Admin** 页面。
+*   上传 `.md/.txt` 文档。
+*   点击 **Force Re-build Brain** 强制刷新知识库。
 
 ---
 
@@ -91,17 +68,17 @@ docker-compose up -d --build
 ```text
 enterprise-brain/
 ├── src/
-│   ├── app.py          # Web 主程序 (含语义缓存逻辑)
-│   ├── ingest.py       # 数据清洗与入库 (Client 端)
-│   ├── query.py        # 命令行测试工具
-│   └── db_factory.py   # [核心] 数据库工厂模式实现
-├── docs/               # 架构文档与升级指南
-├── data/               # 知识库源文件 (Markdown/TXT)
-├── deploy.sh           # 客户服务器一键部署脚本
-├── package.sh          # 交付包打包脚本
-└── docker-compose.yml  # 容器编排配置
+│   ├── app.py          # [用户端] 聊天主程序 (含 Agent 调度)
+│   ├── pages/
+│   │   └── Admin.py    # [管理端] 知识库管理
+│   ├── tool_factory.py # [工具箱] 搜索、代码、文件工具定义
+│   ├── db_factory.py   # [工厂] 数据库连接池
+│   └── ingest.py       # [核心] 数据清洗与入库
+├── docs/               # 架构升级指南 (GPTCache/Pgvector)
+├── data/               # 知识库源文件
+└── docker-compose.yml  # 微服务编排
 ```
 
 ## 🛡 安全声明
-*   **API Key 安全**：所有 Key 均通过环境变量注入，不硬编码在代码中。
-*   **数据隐私**：默认 Embedding 模型完全本地运行，知识库数据仅存储在私有 `chroma_db/` 卷中。
+*   **代码沙箱**：Pro 模式下的 Python 执行器仅用于演示，生产环境建议配合 Docker 隔离或 E2B 沙箱使用。
+*   **数据隐私**：默认 Embedding 模型完全本地运行，数据不出内网。
