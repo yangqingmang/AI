@@ -1,9 +1,10 @@
+openai
 langchain
-langchain-community
 langchain-openai
-chromadb
-fastapi
-uvicorn
+langchain-community
+langchain-huggingface
+langchain-chroma
 python-dotenv
-pypdf
-tiktoken
+chromadb
+sentence-transformers
+streamlit
