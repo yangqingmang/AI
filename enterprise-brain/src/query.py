@@ -53,7 +53,7 @@ def query_brain(question: str):
 
     # 5. 调用 LLM (DeepSeek)
     llm = ChatOpenAI(
-        model="deepseek-chat",
+        model=os.getenv("LLM_MODEL_NAME", "deepseek-chat"),
         api_key=os.getenv("DEEPSEEK_API_KEY"),
         base_url=os.getenv("DEEPSEEK_BASE_URL"),
         temperature=0.1  # 低温模式，确保准确性

@@ -35,6 +35,8 @@ DATA_DIR = "data"
 # 确保 data 目录存在
 os.makedirs(DATA_DIR, exist_ok=True)
 
+import chromadb
+
 @st.cache_resource
 def load_chain():
     """
@@ -42,13 +44,21 @@ def load_chain():
     使用 @st.cache_resource 避免每次刷新都重新加载模型
     """
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    
+    # 切换为 HttpClient 模式
+    client = chromadb.HttpClient(
+        host=os.getenv("CHROMA_SERVER_HOST", "localhost"),
+        port=os.getenv("CHROMA_SERVER_PORT", "8000")
+    )
+    
     vector_store = Chroma(
-        persist_directory=DB_DIR,
+        client=client,
+        collection_name="enterprise_docs",
         embedding_function=embeddings
     )
     
     llm = ChatOpenAI(
-        model="deepseek-chat",
+        model=os.getenv("LLM_MODEL_NAME", "deepseek-chat"),
         api_key=os.getenv("DEEPSEEK_API_KEY"),
         base_url=os.getenv("DEEPSEEK_BASE_URL"),
         temperature=0.1,
@@ -143,6 +153,12 @@ def main():
         with st.chat_message("user"):
             st.markdown(prompt)
 
+import time
+
+# ... imports ...
+
+# ... existing code ...
+
         # 生成 AI 回答
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
@@ -151,8 +167,11 @@ def main():
             try:
                 vector_store, llm = load_chain()
                 
-                # 检索
-                results = vector_store.similarity_search(prompt, k=3)
+                # 1. 计时：检索阶段
+                start_time = time.time()
+                with st.spinner("🔍 Searching..."):
+                    results = vector_store.similarity_search(prompt, k=3)
+                retrieval_time = time.time() - start_time
                 
                 if not results:
                     full_response = "⚠️ 知识库中没有找到相关信息，请尝试上传相关文档。"
@@ -178,14 +197,24 @@ def main():
                     
                     chain = prompt_template | llm
                     
-                    # 流式输出
+                    # 2. 计时：生成阶段
+                    start_gen = time.time()
                     full_response = ""
                     for chunk in chain.stream({"context": context_text, "question": prompt}):
                         if chunk.content:
                             full_response += chunk.content
                             message_placeholder.markdown(full_response + "▌")
                     
+                    generation_time = time.time() - start_gen
+                    
                     message_placeholder.markdown(full_response)
+                    
+                    # 3. 显示性能指标
+                    st.divider()
+                    cols = st.columns(4)
+                    cols[0].caption(f"⏱️ Retrieval: **{retrieval_time:.3f}s**")
+                    cols[1].caption(f"🧠 Generation: **{generation_time:.3f}s**")
+                    cols[2].caption(f"⚡ Total: **{retrieval_time + generation_time:.3f}s**")
                     
                     # 显示引用来源 (Source Expander)
                     with st.expander("📚 View Sources"):
