@@ -28,12 +28,39 @@ else
     DOCKER_COMPOSE="docker-compose"
 fi
 
-# 3. 初始化配置文件
+# 3. 配置密钥 (交互式)
 if [ ! -f .env ]; then
     echo -e "${INFO}>>> Initializing .env from template...${NC}"
     cp .env.example .env
-    echo -e "${WARN}⚠️  Action Required: Please edit .env and set your API keys!${NC}"
-    echo -e "   Command: vi .env"
+    
+    echo -e "${WARN}Please enter your DeepSeek API Key (starts with sk-):${NC}"
+    read -p "API Key: " USER_API_KEY
+    
+    if [ -n "$USER_API_KEY" ]; then
+        # 兼容 Linux 不同发行版的 sed 行为
+        sed -i "s|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=$USER_API_KEY|" .env
+        echo -e "${SUCCESS}API Key configured.${NC}"
+    else
+        echo -e "${WARN}No API Key entered.${NC}"
+        read -p "Do you want to continue anyway? The app might not work without an API Key. (y/n) " CONT
+        if [[ "$CONT" != "y" && "$CONT" != "Y" ]]; then
+            echo "Aborting deployment."
+            exit 1
+        fi
+    fi
+    
+    echo -e "${WARN}Set Admin Password for the Knowledge Base UI (default: admin):${NC}"
+    read -p "Password: " USER_PWD
+    if [ -n "$USER_PWD" ]; then
+        # 如果 .env.example 里没有这个变量，就追加；如果有就替换
+        if grep -q "ADMIN_PASSWORD" .env; then
+            sed -i "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=$USER_PWD|" .env
+        else
+            echo "" >> .env
+            echo "ADMIN_PASSWORD=$USER_PWD" >> .env
+        fi
+        echo -e "${SUCCESS}Admin password set.${NC}"
+    fi
 fi
 
 # 4. 目录与权限准备
@@ -52,7 +79,9 @@ if [ "$(docker ps -q -f name=enterprise_brain_v1)" ]; then
     echo -e "${SUCCESS}==============================================${NC}"
     echo -e "${SUCCESS}✅ DEPLOYMENT COMPLETE!${NC}"
     echo -e "${SUCCESS}==============================================${NC}"
-    echo -e "URL: http://$(curl -s ifconfig.me):8501"
+    # 尝试获取公网IP，如果失败则显示内网IP或 localhost
+    PUBLIC_IP=$(curl -s ifconfig.me || echo "localhost")
+    echo -e "URL: http://$PUBLIC_IP:8501"
     echo -e "Logs: $DOCKER_COMPOSE logs -f"
 else
     echo -e "${ERROR}❌ Deployment failed. Check logs with 'docker logs enterprise_brain_v1'${NC}"
