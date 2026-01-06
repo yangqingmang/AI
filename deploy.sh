@@ -32,6 +32,11 @@ if ! [ -x "$(command -v git)" ]; then
     fi
 fi
 
+# -0.5. 优化网络配置 (解决 HTTP/2 stream 错误)
+if [ -x "$(command -v git)" ]; then
+    git config --global http.version HTTP/1.1
+fi
+
 # 0. 同步最新代码
 echo -e "${INFO}>>> Checking for updates...${NC}"
 if [ -d ".git" ]; then
