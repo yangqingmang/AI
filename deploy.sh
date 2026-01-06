@@ -12,6 +12,26 @@ WARN='\033[1;33m'
 ERROR='\033[0;31m'
 NC='\033[0m'
 
+# -1. 基础环境检查: Git
+if ! [ -x "$(command -v git)" ]; then
+    echo -e "${WARN}Git not found. Installing...${NC}"
+    if [ -f /etc/redhat-release ]; then
+        sudo dnf install -y git || sudo yum install -y git
+    elif [ -f /etc/debian_version ]; then
+        sudo apt-get update && sudo apt-get install -y git
+    else
+        # Fallback or other distros
+        if [ -x "$(command -v apk)" ]; then
+            sudo apk add git
+        elif [ -x "$(command -v pacman)" ]; then
+            sudo pacman -S --noconfirm git
+        else
+             echo -e "${ERROR}Unsupported OS for auto-installing Git. Please install git manually.${NC}"
+             exit 1
+        fi
+    fi
+fi
+
 # 0. 同步最新代码
 echo -e "${INFO}>>> Checking for updates...${NC}"
 if [ -d ".git" ]; then
