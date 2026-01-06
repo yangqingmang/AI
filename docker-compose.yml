@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # 1. 独立的向量数据库服务端
   chroma-server:
@@ -10,11 +8,11 @@ services:
     ports:
       - "8000:8000"
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
 
   # 2. 你的应用 (作为客户端)
   enterprise-brain:
@@ -33,8 +31,7 @@ services:
       - CHROMA_SERVER_HOST=chroma-server
       - CHROMA_SERVER_PORT=8000
     depends_on:
-      chroma-server:
-        condition: service_healthy
+      - chroma-server
     deploy:
       resources:
         limits:
