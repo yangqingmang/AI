@@ -26,6 +26,15 @@ st.set_page_config(
     layout="centered"
 )
 
+# 自定义 CSS 稍微美化一下对话气泡 (可选)
+st.markdown("""
+<style>
+    .stChatMessage {
+        border-radius: 15px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 @st.cache_resource
 def init_resources(pro_mode=False):
     """
@@ -63,21 +72,45 @@ def main():
 
     # --- Chat UI ---
     for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+        if msg["role"] == "user":
+            # 用户消息：自定义 HTML 实现靠右显示
+            st.markdown(f"""
+            <div style="display: flex; justify-content: flex-end; align-items: flex-start; margin-bottom: 10px;">
+                <div style="background-color: #e6f3ff; color: #000; padding: 10px; border-radius: 15px; border-top-right-radius: 0; max-width: 75%; box-shadow: 1px 1px 5px rgba(0,0,0,0.1);">
+                    {msg["content"]}
+                </div>
+                <div style="min-width: 40px; height: 40px; background-color: #f0f2f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-left: 10px; font-size: 20px;">
+                    👤
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            # 助手消息：使用原生组件 (保留 Markdown 渲染能力)
+            with st.chat_message("assistant"):
+                st.markdown(msg["content"])
 
     if prompt := st.chat_input("Input your question..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+        
+        # 渲染用户新消息 (即时显示)
+        st.markdown(f"""
+        <div style="display: flex; justify-content: flex-end; align-items: flex-start; margin-bottom: 10px;">
+            <div style="background-color: #e6f3ff; color: #000; padding: 10px; border-radius: 15px; border-top-right-radius: 0; max-width: 75%; box-shadow: 1px 1px 5px rgba(0,0,0,0.1);">
+                {prompt}
+            </div>
+            <div style="min-width: 40px; height: 40px; background-color: #f0f2f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-left: 10px; font-size: 20px;">
+                👤
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
+        # 助手回答 (左侧)
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             
             try:
                 # Load resources with visible status
-                with st.spinner("Initializing AI Engine (Downloading models if first time)..."):
-                    # 解包新的返回值
+                with st.spinner("Initializing AI Engine..."):
                     agent_graph, system_prompt, cache_collection, embeddings = init_resources(pro_mode)
                 
                 # 1. Cache Check
@@ -97,7 +130,6 @@ def main():
                 # 2. Agent Execution
                 if not cache_hit:
                     with st.status("🤖 Thinking...", expanded=True) as status:
-                        # 构造消息列表：SystemMessage (Prompt) + HumanMessage (Input)
                         messages = [
                             SystemMessage(content=system_prompt),
                             HumanMessage(content=prompt)
