@@ -51,6 +51,7 @@ sync_code() {
         git remote set-url origin "$repo_url"
         git fetch --progress --connect-timeout 15 origin master
         git reset --hard origin/master
+        git clean -fd # 强制删除未追踪的文件和目录，防止残留干扰
     else
         git init
         git remote add origin "$repo_url" || git remote set-url origin "$repo_url"
