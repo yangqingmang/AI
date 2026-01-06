@@ -12,3 +12,4 @@ sentence-transformers
 streamlit
 duckduckgo-search
 uvicorn
+pydantic-settings
