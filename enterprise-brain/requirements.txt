@@ -9,4 +9,5 @@ python-dotenv
 chromadb
 sentence-transformers
 streamlit
-duckduckgo-searchuvicorn
+duckduckgo-search
+uvicorn
