@@ -155,24 +155,45 @@ if [ ! -f .env ]; then
 fi
 
 # 4. 目录与权限准备
-echo -e "${INFO}>>> Preparing directories and checking resources...${NC}"
+echo -e "${INFO}>>> Analyzing system resources for optimization...${NC}"
 
-# 性能优化: 检查 Swap
-TOTAL_MEM=$(free -m | awk '/^Mem:/{print $2}')
-TOTAL_SWAP=$(free -m | awk '/^Swap:/{print $2}')
-if [ $((TOTAL_MEM + TOTAL_SWAP)) -lt 3500 ]; then
-    echo -e "${WARN}Low memory detected (RAM+Swap < 3.5GB). Attempting to enable 2GB Swap for stability...${NC}"
+# 1. 硬件探测
+CPU_CORES=$(nproc)
+MEM_TOTAL_MB=$(free -m | awk '/^Mem:/{print $2}')
+MEM_TOTAL_GB=$((MEM_TOTAL_MB / 1024))
+
+echo -e "${INFO}Hardware detected: ${CPU_CORES} CPU Cores, ${MEM_TOTAL_GB}GB RAM${NC}"
+
+# 2. 写入/更新性能环境变量到 .env
+# 设置并发线程数 (针对 CPU 向量计算加速)
+if [ "$CPU_CORES" -gt 1 ]; then
+    sed -i "/^OMP_NUM_THREADS=/d" .env
+    echo "OMP_NUM_THREADS=$CPU_CORES" >> .env
+    echo -e "${SUCCESS}Performance: Set OMP_NUM_THREADS to $CPU_CORES${NC}"
+fi
+
+# 3. 内存与 Swap 策略
+TOTAL_AVAILABLE_MEM=$((MEM_TOTAL_MB + $(free -m | awk '/^Swap:/{print $2}')))
+if [ $TOTAL_AVAILABLE_MEM -lt 3500 ]; then
+    echo -e "${WARN}Low memory environment. Managing Swap...${NC}"
     if [ ! -f /swapfile ]; then
         sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
         sudo chmod 600 /swapfile
         sudo mkswap /swapfile
         sudo swapon /swapfile
         echo "/swapfile swap swap defaults 0 0" | sudo tee -a /etc/fstab
-        echo -e "${SUCCESS}Swap enabled.${NC}"
     fi
+else
+    echo -e "${SUCCESS}Resource check: High-performance mode active (Memory > 4GB).${NC}"
+fi
+
+# 4. GPU 检测 (可选提示)
+if command -v nvidia-smi &> /dev/null; then
+    echo -e "${SUCCESS}NVIDIA GPU detected! For local LLM acceleration, consider installing nvidia-container-toolkit.${NC}"
 fi
 
 mkdir -p data chroma_db
+chmod 777 chroma_db
 chmod 777 chroma_db # 确保容器有权写入持久化数据库
 
 # 5. 启动服务
