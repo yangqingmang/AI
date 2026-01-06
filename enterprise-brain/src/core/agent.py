@@ -1,5 +1,5 @@
 from langgraph.prebuilt import create_react_agent
-from langchain.tools import create_retriever_tool
+from langchain_core.tools.retriever import create_retriever_tool
 
 from src.core.llm import get_llm
 from src.core.db import DBFactory
