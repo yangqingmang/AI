@@ -13,3 +13,4 @@ streamlit
 duckduckgo-search
 uvicorn
 pydantic-settings
+pypdf

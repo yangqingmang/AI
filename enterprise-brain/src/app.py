@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from src.core.agent import build_agent
 from src.core.db import DBFactory
 from src.core.llm import get_embeddings
+from src.core.ingest import ingest_docs
 from src.config.settings import get_settings
 
 # 加载环境
@@ -23,7 +24,7 @@ settings = get_settings()
 st.set_page_config(
     page_title=settings.APP_NAME,
     page_icon="🤖",
-    layout="centered"
+    layout="wide"
 )
 
 # 自定义 CSS 稍微美化一下对话气泡 (可选)
@@ -57,6 +58,29 @@ def main():
             st.success("🚀 Pro Features Active")
         else:
             st.info("🌱 Free Plan (RAG Only)")
+        
+        st.markdown("---")
+        st.header("📚 Knowledge Base")
+        uploaded_files = st.file_uploader("Upload Docs (TXT/MD/PDF)", accept_multiple_files=True)
+        
+        if uploaded_files:
+            if st.button("📥 Ingest Files"):
+                with st.status("Processing Documents...", expanded=True) as status:
+                    # Save files
+                    os.makedirs(settings.DATA_DIR, exist_ok=True)
+                    for uploaded_file in uploaded_files:
+                        save_path = os.path.join(settings.DATA_DIR, uploaded_file.name)
+                        with open(save_path, "wb") as f:
+                            f.write(uploaded_file.getbuffer())
+                        status.write(f"Saved: {uploaded_file.name}")
+                    
+                    # Run Ingestion
+                    status.write("Starting Vectorization...")
+                    # Capture ingest logs
+                    ingest_docs(progress_callback=status.write)
+                    status.update(label="✅ Knowledge Base Updated!", state="complete", expanded=False)
+                    time.sleep(1) # feedback delay
+
         st.markdown("---")
         st.caption(f"Version: {settings.APP_VERSION}")
 
