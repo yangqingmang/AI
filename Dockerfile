@@ -17,9 +17,10 @@ RUN apt-get update && apt-get install -y \
 # 复制依赖文件
 COPY enterprise-brain/requirements.txt .
 
-# 安装 Python 依赖 (使用国内镜像源)
-# 先单独安装 CPU 版的 torch，避免下载巨大的 CUDA 依赖包
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
+# 升级 pip 并安装 Python 依赖 (使用国内镜像源)
+# 防御性修复: 强制修正可能存在的拼写错误 (duckduckgo-searchuvicorn -> 分行)
+RUN sed -i 's/duckduckgo-searchuvicorn/duckduckgo-search\nuvicorn/g' requirements.txt && \
+    pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn -r requirements.txt
 
 # 复制项目代码
