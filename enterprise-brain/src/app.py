@@ -120,7 +120,7 @@ def main():
                 cache_hit = False
                 if (cache_results['ids'] and 
                     len(cache_results['distances'][0]) > 0 and 
-                    cache_results['distances'][0][0] < 0.2):
+                    cache_results['distances'][0][0] < 0.1):
                     
                     cached_answer = cache_results['metadatas'][0][0]['answer']
                     message_placeholder.markdown(cached_answer + " (🚀 Cached)")
