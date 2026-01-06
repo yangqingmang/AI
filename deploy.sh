@@ -18,7 +18,12 @@ if [ -d ".git" ]; then
     echo -e "${INFO}Pulling latest code from remote (branch: master)...${NC}"
     git pull origin master
 else
-    echo -e "${WARN}Not a git repository. Skipping code update.${NC}"
+    echo -e "${WARN}Not a git repository. Initializing and syncing from remote...${NC}"
+    git init
+    git remote add origin https://github.com/yangqingmang/AI.git || true # Ignore if exists
+    git fetch origin master
+    git reset --hard origin/master
+    echo -e "${SUCCESS}Code synced with remote.${NC}"
 fi
 
 echo -e "${INFO}>>> Starting Enterprise Brain Deployment...${NC}"
