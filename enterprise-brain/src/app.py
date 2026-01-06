@@ -153,16 +153,32 @@ def main():
                 
                 # 2. Agent Execution
                 if not cache_hit:
-                    with st.status("🤖 Thinking...", expanded=True) as status:
-                        messages = [
-                            SystemMessage(content=system_prompt),
-                            HumanMessage(content=prompt)
-                        ]
-                        response = agent_graph.invoke({"messages": messages})
-                        status.update(label="✅ Finished!", state="complete", expanded=False)
+                    # 使用流式输出来降低首字延迟
+                    full_response = ""
                     
-                    # Extract final answer
-                    full_response = response["messages"][-1].content
+                    # 构造消息
+                    messages = [
+                        SystemMessage(content=system_prompt),
+                        HumanMessage(content=prompt)
+                    ]
+                    
+                    # 这里的 stream_mode="messages" 会返回每一步的消息更新
+                    stream = agent_graph.stream({"messages": messages}, stream_mode="messages")
+                    
+                    for event in stream:
+                        # event 是 (message, metadata) 元组或者直接是 message (取决于版本)
+                        # 在 LangGraph prebuilt agent 中，通常返回 (message, metadata)
+                        # 我们只关心 AIMessageChunk 且 content 不为空的部分
+                        
+                        msg_chunk, _ = event if isinstance(event, tuple) else (event, None)
+                        
+                        # 只处理来自 AI 的内容块
+                        if msg_chunk.content and msg_chunk.type == "ai":
+                            full_response += msg_chunk.content
+                            # 实时更新 UI (加个光标效果)
+                            message_placeholder.markdown(full_response + "▌")
+                    
+                    # 最终移除光标
                     message_placeholder.markdown(full_response)
                     
                     # Update Cache
