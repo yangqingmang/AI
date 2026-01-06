@@ -4,8 +4,9 @@ import uuid
 import sys
 import os
 
-# 确保 src 目录在 path 中 (解决 docker 运行时的导入问题)
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# 确保项目根目录在 path 中 (解决 docker 运行时的导入问题)
+# __file__ = /app/src/app.py -> dirname = /app/src -> dirname = /app
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from langchain_core.messages import HumanMessage
 from dotenv import load_dotenv
