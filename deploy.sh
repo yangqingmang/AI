@@ -39,18 +39,34 @@ fi
 
 # 0. 同步最新代码
 echo -e "${INFO}>>> Checking for updates...${NC}"
-if [ -d ".git" ]; then
-    echo -e "${INFO}Force syncing latest code from remote (branch: master)...${NC}"
-    git fetch --progress origin master
-    git reset --hard origin/master
-else
-    echo -e "${WARN}Not a git repository. Initializing and syncing from remote...${NC}"
-    git init
-    git remote add origin https://github.com/yangqingmang/AI.git || true # Ignore if exists
-    git fetch --progress origin master
-    git reset --hard origin/master
-    echo -e "${SUCCESS}Code synced with remote.${NC}"
+GITHUB_REPO="https://github.com/yangqingmang/AI.git"
+PROXY_REPO="https://ghproxy.net/https://github.com/yangqingmang/AI.git"
+
+sync_code() {
+    local repo_url=$1
+    echo -e "${INFO}Attempting to sync from: ${repo_url}...${NC}"
+    
+    # 配置 Git 临时参数：15秒连接超时，开启进度
+    if [ -d ".git" ]; then
+        git remote set-url origin "$repo_url"
+        git fetch --progress --connect-timeout 15 origin master
+        git reset --hard origin/master
+    else
+        git init
+        git remote add origin "$repo_url" || git remote set-url origin "$repo_url"
+        git fetch --progress --connect-timeout 15 origin master
+        git reset --hard origin/master
+    fi
+}
+
+if ! sync_code "$GITHUB_REPO"; then
+    echo -e "${WARN}Direct access to GitHub failed. Trying via Acceleration Proxy...${NC}"
+    if ! sync_code "$PROXY_REPO"; then
+        echo -e "${ERROR}All sync attempts failed. Please check your internet connection.${NC}"
+        exit 1
+    fi
 fi
+echo -e "${SUCCESS}Code synced successfully.${NC}"
 
 echo -e "${INFO}>>> Starting Enterprise Brain Deployment...${NC}"
 
