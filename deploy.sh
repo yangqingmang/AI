@@ -39,12 +39,12 @@ sync_code() {
     local repo_url=$1
     if [ -d ".git" ]; then
         git remote set-url origin "$repo_url"
-        git fetch --progress --connect-timeout 15 origin master
+        git fetch --progress origin master
         git reset --hard origin/master
         git clean -fd
     else
         git init && git remote add origin "$repo_url"
-        git fetch --progress --connect-timeout 15 origin master
+        git fetch --progress origin master
         git reset --hard origin/master
     fi
 }
