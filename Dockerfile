@@ -17,8 +17,9 @@ RUN apt-get update && apt-get install -y \
 # 复制依赖文件
 COPY enterprise-brain/requirements.txt .
 
-# 安装 Python 依赖 (使用国内镜像源)
-RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn -r requirements.txt
+# 升级 pip 并安装 Python 依赖 (使用国内镜像源)
+RUN pip install --no-cache-dir --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple && \
+    pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn -r requirements.txt
 
 # 复制项目代码
 COPY enterprise-brain/ .
