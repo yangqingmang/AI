@@ -137,12 +137,21 @@ def main():
                 with st.spinner("Initializing AI Engine..."):
                     agent_graph, system_prompt, cache_collection, embeddings = init_resources(pro_mode)
                 
-                # 1. Cache Check
-                # 仅对较长的问题查缓存，避免短语(如"你好")误命中
+                # 1. Cache Check (Hybrid Strategy)
                 cache_hit = False
-                prompt_vector = embeddings.embed_query(prompt)
                 
-                if len(prompt) > 4:
+                # A. 精确匹配 (Exact Match): 优先检查字面完全一样的问题
+                # 这能完美解决短语(如"你好")的误判，且完全免费
+                exact_match = cache_collection.get(where={"question": prompt})
+                if exact_match and exact_match['ids']:
+                    cached_answer = exact_match['metadatas'][0]['answer']
+                    message_placeholder.markdown(cached_answer + " (🚀 Cached)")
+                    full_response = cached_answer
+                    cache_hit = True
+                
+                # B. 向量模糊匹配 (Vector Match): 仅针对长问题
+                if not cache_hit and len(prompt) > 10:
+                    prompt_vector = embeddings.embed_query(prompt)
                     cache_results = cache_collection.query(query_embeddings=[prompt_vector], n_results=1)
                     
                     if (cache_results['ids'] and 
