@@ -48,7 +48,7 @@ def init_resources(pro_mode=False):
     return agent_graph, system_prompt, cache_collection, embeddings
 
 def main():
-    st.title(f"💬 {settings.APP_NAME}")
+    st.markdown(f"<h1 style='text-align: center;'>💬 {settings.APP_NAME}</h1>", unsafe_allow_html=True)
     
     # --- Sidebar ---
     with st.sidebar:
@@ -138,18 +138,21 @@ def main():
                     agent_graph, system_prompt, cache_collection, embeddings = init_resources(pro_mode)
                 
                 # 1. Cache Check
-                prompt_vector = embeddings.embed_query(prompt)
-                cache_results = cache_collection.query(query_embeddings=[prompt_vector], n_results=1)
-                
+                # 仅对较长的问题查缓存，避免短语(如"你好")误命中
                 cache_hit = False
-                if (cache_results['ids'] and 
-                    len(cache_results['distances'][0]) > 0 and 
-                    cache_results['distances'][0][0] < 0.1):
+                prompt_vector = embeddings.embed_query(prompt)
+                
+                if len(prompt) > 4:
+                    cache_results = cache_collection.query(query_embeddings=[prompt_vector], n_results=1)
                     
-                    cached_answer = cache_results['metadatas'][0][0]['answer']
-                    message_placeholder.markdown(cached_answer + " (🚀 Cached)")
-                    full_response = cached_answer
-                    cache_hit = True
+                    if (cache_results['ids'] and 
+                        len(cache_results['distances'][0]) > 0 and 
+                        cache_results['distances'][0][0] < 0.1):
+                        
+                        cached_answer = cache_results['metadatas'][0][0]['answer']
+                        message_placeholder.markdown(cached_answer + " (🚀 Cached)")
+                        full_response = cached_answer
+                        cache_hit = True
                 
                 # 2. Agent Execution
                 if not cache_hit:
