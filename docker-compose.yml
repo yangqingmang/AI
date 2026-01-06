@@ -4,7 +4,8 @@ services:
     image: chromadb/chroma:latest
     container_name: chroma_server
     volumes:
-      - ./chroma_db:/chroma/chroma
+      # 将数据挂载到代码目录的上一级
+      - ../chroma_db:/chroma/chroma
     ports:
       - "8000:8000"
     restart: unless-stopped
@@ -23,7 +24,7 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      - ./data:/app/data
+      - ../data:/app/data
     environment:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL}
