@@ -8,3 +8,5 @@ dist/
 release.zip
 *.tar.gz
 enterprise-brain/chroma_db/
+chroma_db/
+data/
