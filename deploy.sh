@@ -155,7 +155,23 @@ if [ ! -f .env ]; then
 fi
 
 # 4. 目录与权限准备
-echo -e "${INFO}>>> Preparing directories...${NC}"
+echo -e "${INFO}>>> Preparing directories and checking resources...${NC}"
+
+# 性能优化: 检查 Swap
+TOTAL_MEM=$(free -m | awk '/^Mem:/{print $2}')
+TOTAL_SWAP=$(free -m | awk '/^Swap:/{print $2}')
+if [ $((TOTAL_MEM + TOTAL_SWAP)) -lt 3500 ]; then
+    echo -e "${WARN}Low memory detected (RAM+Swap < 3.5GB). Attempting to enable 2GB Swap for stability...${NC}"
+    if [ ! -f /swapfile ]; then
+        sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+        echo "/swapfile swap swap defaults 0 0" | sudo tee -a /etc/fstab
+        echo -e "${SUCCESS}Swap enabled.${NC}"
+    fi
+fi
+
 mkdir -p data chroma_db
 chmod 777 chroma_db # 确保容器有权写入持久化数据库
 
