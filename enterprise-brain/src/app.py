@@ -5,10 +5,9 @@ import sys
 import os
 
 # 确保项目根目录在 path 中 (解决 docker 运行时的导入问题)
-# __file__ = /app/src/app.py -> dirname = /app/src -> dirname = /app
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from dotenv import load_dotenv
 
 from src.core.agent import build_agent
@@ -34,8 +33,9 @@ def init_resources(pro_mode=False):
     """
     embeddings = get_embeddings()
     cache_collection = DBFactory.get_cache_collection(embeddings)
-    agent_graph = build_agent(pro_mode, embeddings)
-    return agent_graph, cache_collection, embeddings
+    # build_agent 现在返回 (graph, system_prompt)
+    agent_graph, system_prompt = build_agent(pro_mode, embeddings)
+    return agent_graph, system_prompt, cache_collection, embeddings
 
 def main():
     st.title(f"💬 {settings.APP_NAME}")
@@ -75,8 +75,10 @@ def main():
             message_placeholder = st.empty()
             
             try:
-                # Load resources
-                agent_graph, cache_collection, embeddings = init_resources(pro_mode)
+                # Load resources with visible status
+                with st.spinner("Initializing AI Engine (Downloading models if first time)..."):
+                    # 解包新的返回值
+                    agent_graph, system_prompt, cache_collection, embeddings = init_resources(pro_mode)
                 
                 # 1. Cache Check
                 prompt_vector = embeddings.embed_query(prompt)
@@ -95,7 +97,12 @@ def main():
                 # 2. Agent Execution
                 if not cache_hit:
                     with st.status("🤖 Thinking...", expanded=True) as status:
-                        response = agent_graph.invoke({"messages": [HumanMessage(content=prompt)]})
+                        # 构造消息列表：SystemMessage (Prompt) + HumanMessage (Input)
+                        messages = [
+                            SystemMessage(content=system_prompt),
+                            HumanMessage(content=prompt)
+                        ]
+                        response = agent_graph.invoke({"messages": messages})
                         status.update(label="✅ Finished!", state="complete", expanded=False)
                     
                     # Extract final answer

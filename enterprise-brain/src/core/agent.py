@@ -36,6 +36,6 @@ def build_agent(pro_mode: bool, embeddings):
     你不仅能回答问题，还能编写代码、分析数据、管理文件、联网搜索。
     """
 
-    # 3. 构建图
-    graph = create_react_agent(llm, tools, state_modifier=system_prompt)
-    return graph
+    # 3. 构建图 (不使用 state_modifier 以兼容旧版 LangGraph)
+    graph = create_react_agent(llm, tools)
+    return graph, system_prompt
