@@ -40,8 +40,9 @@ fi
 # 0. 同步最新代码
 echo -e "${INFO}>>> Checking for updates...${NC}"
 if [ -d ".git" ]; then
-    echo -e "${INFO}Pulling latest code from remote (branch: master)...${NC}"
-    git pull origin master
+    echo -e "${INFO}Force syncing latest code from remote (branch: master)...${NC}"
+    git fetch origin master
+    git reset --hard origin/master
 else
     echo -e "${WARN}Not a git repository. Initializing and syncing from remote...${NC}"
     git init
