@@ -41,13 +41,13 @@ fi
 echo -e "${INFO}>>> Checking for updates...${NC}"
 if [ -d ".git" ]; then
     echo -e "${INFO}Force syncing latest code from remote (branch: master)...${NC}"
-    git fetch origin master
+    git fetch --progress origin master
     git reset --hard origin/master
 else
     echo -e "${WARN}Not a git repository. Initializing and syncing from remote...${NC}"
     git init
     git remote add origin https://github.com/yangqingmang/AI.git || true # Ignore if exists
-    git fetch origin master
+    git fetch --progress origin master
     git reset --hard origin/master
     echo -e "${SUCCESS}Code synced with remote.${NC}"
 fi
@@ -67,10 +67,10 @@ if ! [ -x "$(command -v docker)" ]; then
         sudo dnf -y install dnf-plugins-core
         sudo dnf config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
         sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    else
-        # Ubuntu / Debian 等其他系统 (尝试使用阿里云镜像参数)
+    # Ubuntu / Debian 等其他系统 (尝试使用阿里云镜像参数)
         # 如果 get.docker.com 完全无法访问，请手动替换为 apt/yum 源安装
-        curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
+        echo -e "${INFO}Installing Docker via official script with Aliyun mirror (this may take a few minutes)...${NC}"
+        curl -fL https://get.docker.com | bash -s docker --mirror Aliyun
     fi
     
     systemctl enable --now docker
