@@ -30,6 +30,12 @@ if ! [ -x "$(command -v git)" ]; then
     fi
 fi
 
+# 3. Docker 环境检查
+if ! [ -x "$(command -v docker)" ]; then
+    echo -e "${ERROR}Docker is not installed. Please install Docker first.${NC}"
+    exit 1
+fi
+
 # 3. 同步最新代码 (使用强制重置模式)
 echo -e "${INFO}>>> Syncing code...${NC}"
 GITHUB_REPO="https://github.com/yangqingmang/AI.git"

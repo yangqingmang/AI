@@ -7,6 +7,7 @@ from langchain_chroma import Chroma
 from src.config.settings import get_settings
 from src.core.db import DBFactory
 from src.core.llm import get_embeddings
+from src.core.retriever import reset_bm25_cache
 
 settings = get_settings()
 
@@ -157,6 +158,8 @@ def ingest_docs(progress_callback=None):
             vector_store.add_documents(batch)
             log(f"      ...ingested {min(i+batch_size, total_chunks)}/{total_chunks}")
 
+    # Reset BM25 Cache to reflect new data
+    reset_bm25_cache()
     log("✅ Sync complete!")
 
 if __name__ == "__main__":

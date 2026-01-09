@@ -1,30 +1,27 @@
 services:
-  # 1. 独立的向量数据库服务端
+  # 1. 向量数据库服务 (ChromaDB)
   chroma-server:
     image: chromadb/chroma:latest
-    container_name: chroma_server
+    container_name: eb_chroma
     volumes:
-      # 将数据挂载到代码目录的上一级
       - ../chroma_db:/chroma/chroma
     ports:
-      - "8000:8000"
+      - "8001:8000" # Map host 8001 to container 8000 (Internal)
     restart: unless-stopped
-    # healthcheck:
-    #   test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
-    #   interval: 10s
-    #   timeout: 5s
-    #   retries: 5
+    environment:
+      - ALLOW_RESET=TRUE
 
-  # 2. 你的应用 (作为客户端)
-  enterprise-brain:
+  # 2. 后端 API 服务 (FastAPI)
+  backend:
     build: .
-    image: enterprise-brain:v1.2
-    container_name: enterprise_brain_v1
-    restart: unless-stopped
-    ports:
-      - "8501:8501"
+    image: enterprise-brain-backend:v1.3
+    container_name: eb_backend
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000
     volumes:
       - ../data:/app/data
+      - ../chat_history.db:/app/chat_history.db # Persist chat history
+    ports:
+      - "8000:8000"
     environment:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL}
@@ -34,8 +31,19 @@ services:
       - HF_ENDPOINT=https://hf-mirror.com
     depends_on:
       - chroma-server
-    # deploy:
-    #   resources:
-    #     limits:
-    #       memory: 4G
+    restart: unless-stopped
+
+  # 3. 前端界面 (Streamlit)
+  frontend:
+    build: .
+    image: enterprise-brain-frontend:v1.3
+    container_name: eb_frontend
+    command: streamlit run src/app.py --server.port=8501 --server.address=0.0.0.0
+    ports:
+      - "8501:8501"
+    environment:
+      - API_BASE_URL=http://backend:8000/api/v1
+    depends_on:
+      - backend
+    restart: unless-stopped
 

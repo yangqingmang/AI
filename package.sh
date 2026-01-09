@@ -24,6 +24,7 @@ tar -czf "$TARGET_FILE" \
     --exclude="chroma_db" \
     --exclude=".env" \
     --exclude="dist" \
+    --exclude="chat_history.db" \
     --exclude="enterprise-brain/data/*" \
     enterprise-brain Dockerfile docker-compose.yml .env.example deploy.sh
 

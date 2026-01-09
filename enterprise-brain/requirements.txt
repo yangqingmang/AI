@@ -6,6 +6,7 @@ langchain-huggingface
 langchain-chroma
 langchain-experimental
 langgraph
+langgraph-checkpoint-sqlite
 python-dotenv
 chromadb
 sentence-transformers
@@ -14,3 +15,6 @@ duckduckgo-search
 uvicorn
 pydantic-settings
 pypdf
+fastapi
+python-multipart
+rank_bm25

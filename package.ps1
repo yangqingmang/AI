@@ -14,7 +14,7 @@ New-Item -ItemType Directory -Path $DistDir -Force | Out-Null
 # 使用 Robocopy 高效复制并排除不需要的大文件夹 (.venv, .git, chroma_db 等)
 Write-Host "   Copying files..."
 $RoboDest = Join-Path $DistDir "enterprise-brain"
-robocopy "enterprise-brain" $RoboDest /E /XD .venv .git .idea __pycache__ chroma_db /XF .env *.pyc *.log /NFL /NDL /NJH /NJS
+robocopy "enterprise-brain" $RoboDest /E /XD .venv .git .idea __pycache__ chroma_db /XF .env *.pyc *.log chat_history.db /NFL /NDL /NJH /NJS
 if ($LASTEXITCODE -le 7) { $global:LastExitCode = 0 } # Robocopy success codes are 0-7
 
 Copy-Item "Dockerfile" -Destination $DistDir

@@ -3,23 +3,23 @@ from langchain_core.tools.retriever import create_retriever_tool
 
 from src.core.llm import get_llm
 from src.core.db import DBFactory
+from src.core.retriever import get_retriever
+from src.core.tools.retrieval import get_retrieval_tool
 from src.tools.search import get_search_tool
 from src.tools.python import get_python_tool
 from src.tools.files import get_file_tools
 
-def build_agent(pro_mode: bool, embeddings):
+def build_agent(pro_mode: bool, embeddings, checkpointer=None):
     """
     构建 LangGraph ReAct Agent
     """
     llm = get_llm()
-    vector_store = DBFactory.get_vector_store(embeddings)
+    # 使用混合检索器 (BM25 + Vector)
+    retriever = get_retriever(embeddings)
     
-    # 1. 基础知识库工具
-    retriever_tool = create_retriever_tool(
-        vector_store.as_retriever(search_kwargs={"k": 3}),
-        "knowledge_base",
-        "搜索企业内部知识库。关于公司战略、SOP、技术文档的问题优先使用此工具。"
-    )
+    # 1. 基础知识库工具 (使用自定义 Tool 以保留 Source 信息)
+    retriever_tool = get_retrieval_tool(retriever)
+    
     tools = [retriever_tool]
     
     system_prompt = """你是一个专业的企业级 AI 战略顾问。
@@ -36,6 +36,6 @@ def build_agent(pro_mode: bool, embeddings):
     你不仅能回答问题，还能编写代码、分析数据、管理文件、联网搜索。
     """
 
-    # 3. 构建图 (不使用 state_modifier 以兼容旧版 LangGraph)
-    graph = create_react_agent(llm, tools)
+    # 3. 构建图 (传入 checkpointer 以支持记忆)
+    graph = create_react_agent(llm, tools, checkpointer=checkpointer)
     return graph, system_prompt

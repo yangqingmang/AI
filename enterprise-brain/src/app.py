@@ -1,211 +1,220 @@
 import streamlit as st
-import time
-import uuid
-import sys
+import requests
+import json
 import os
+import sys
+import uuid
 
-# 确保项目根目录在 path 中 (解决 docker 运行时的导入问题)
+# Ensure project root is in path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from langchain_core.messages import HumanMessage, SystemMessage
-from dotenv import load_dotenv
-
-from src.core.agent import build_agent
-from src.core.db import DBFactory
-from src.core.llm import get_embeddings
-from src.core.ingest import ingest_docs
 from src.config.settings import get_settings
 
-# 加载环境
-load_dotenv()
 settings = get_settings()
 
-# 配置页面
+# Backend API Base URL
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000/api/v1")
+
+# Page Config
 st.set_page_config(
     page_title=settings.APP_NAME,
-    page_icon="🤖",
+    page_icon="🧠",
     layout="wide"
 )
 
-# 自定义 CSS 稍微美化一下对话气泡 (可选)
+# --- Custom CSS ---
 st.markdown("""
 <style>
-    .stChatMessage {
-        border-radius: 15px;
+    .stButton button {
+        border-radius: 20px;
+        border: 1px solid #e0e0e0;
     }
+    .stChatMessage {
+        border-radius: 10px;
+    }
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-@st.cache_resource
-def init_resources(pro_mode=False):
-    """
-    初始化资源 (Cached)
-    """
-    embeddings = get_embeddings()
-    cache_collection = DBFactory.get_cache_collection(embeddings)
-    # build_agent 现在返回 (graph, system_prompt)
-    agent_graph, system_prompt = build_agent(pro_mode, embeddings)
-    return agent_graph, system_prompt, cache_collection, embeddings
-
 def main():
-    st.markdown(f"<h1 style='text-align: center;'>💬 {settings.APP_NAME}</h1>", unsafe_allow_html=True)
-    
     # --- Sidebar ---
     with st.sidebar:
-        st.header("💎 Subscription")
-        pro_mode = st.checkbox("Enable Pro Mode (Agent)", value=False, help="Unlock Web Search, Code Execution, and File Management.")
+        st.image("https://img.icons8.com/color/96/artificial-intelligence.png", width=60)
+        st.title(settings.APP_NAME)
+        st.caption(f"Enterprise Knowledge Engine v{settings.APP_VERSION}")
+        
+        st.markdown("---")
+        
+        # 1. Pro Mode
+        st.subheader("⚙️ Settings")
+        pro_mode = st.toggle("Pro Mode (Agent)", value=False, help="Unlock Web Search, Code Execution, and File Management.")
         if pro_mode:
-            st.success("🚀 Pro Features Active")
-        else:
-            st.info("🌱 Free Plan (RAG Only)")
+            st.caption("🚀 Agent capabilities enabled")
         
         st.markdown("---")
-        st.header("📚 Knowledge Base")
-        uploaded_files = st.file_uploader("Upload Docs (TXT/MD/PDF)", accept_multiple_files=True)
         
+        # 2. Knowledge Base Manager
+        st.subheader("📚 Knowledge Base")
+        
+        # Upload
+        uploaded_files = st.file_uploader("Add Documents", accept_multiple_files=True, type=["txt", "md", "pdf"])
         if uploaded_files:
-            if st.button("📥 Ingest Files"):
-                with st.status("Processing Documents...", expanded=True) as status:
-                    # Save files
-                    os.makedirs(settings.DATA_DIR, exist_ok=True)
-                    for uploaded_file in uploaded_files:
-                        save_path = os.path.join(settings.DATA_DIR, uploaded_file.name)
-                        with open(save_path, "wb") as f:
-                            f.write(uploaded_file.getbuffer())
-                        status.write(f"Saved: {uploaded_file.name}")
-                    
-                    # Run Ingestion
-                    status.write("Starting Vectorization...")
-                    # Capture ingest logs
-                    ingest_docs(progress_callback=status.write)
-                    status.update(label="✅ Knowledge Base Updated!", state="complete", expanded=False)
-                    time.sleep(1) # feedback delay
+            if st.button("📥 Upload & Index", use_container_width=True):
+                progress_bar = st.progress(0)
+                for i, uploaded_file in enumerate(uploaded_files):
+                    try:
+                        files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
+                        response = requests.post(f"{API_BASE_URL}/upload", files=files)
+                        if response.status_code != 200:
+                            st.error(f"Failed: {uploaded_file.name}")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+                    progress_bar.progress((i + 1) / len(uploaded_files))
+                st.success("Indexing triggered!")
+                st.rerun() # Refresh list
+
+        # File List (Feature 1)
+        with st.expander("📂 Indexed Files", expanded=True):
+            try:
+                response = requests.get(f"{API_BASE_URL}/files")
+                if response.status_code == 200:
+                    files = response.json()
+                    if files:
+                        for f in files:
+                            st.text(f"📄 {f}")
+                    else:
+                        st.caption("No documents found.")
+                else:
+                    st.warning("Could not fetch file list.")
+            except Exception:
+                st.caption("Backend offline")
 
         st.markdown("---")
-        st.caption(f"Version: {settings.APP_VERSION}")
+        if st.button("🗑️ Reset Conversation", use_container_width=True):
+            st.session_state.messages = []
+            st.session_state.session_id = str(uuid.uuid4())
+            st.rerun()
 
-    # --- Session State ---
-    if st.button("🗑️ Clear History", type="secondary"):
-        st.session_state.messages = []
-        st.rerun()
+    # --- Main Chat Area ---
+    if "session_id" not in st.session_state:
+        st.session_state.session_id = str(uuid.uuid4())
 
     if "messages" not in st.session_state:
         st.session_state.messages = [
-            {"role": "assistant", "content": "你好！我是你的 AI 助手。请问有什么可以帮你？"}
+            {"role": "assistant", "content": "你好！我是你的企业知识助手。你可以问我关于公司政策、技术文档或战略规划的问题。"}
         ]
 
-    # --- Chat UI ---
+    # Display Messages
     for msg in st.session_state.messages:
-        if msg["role"] == "user":
-            # 用户消息：自定义 HTML 实现靠右显示
-            st.markdown(f"""
-            <div style="display: flex; justify-content: flex-end; align-items: flex-start; margin-bottom: 10px;">
-                <div style="background-color: #e6f3ff; color: #000; padding: 10px; border-radius: 15px; border-top-right-radius: 0; max-width: 75%; box-shadow: 1px 1px 5px rgba(0,0,0,0.1);">
-                    {msg["content"]}
-                </div>
-                <div style="min-width: 40px; height: 40px; background-color: #f0f2f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-left: 10px; font-size: 20px;">
-                    👤
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            # 助手消息：使用原生组件 (保留 Markdown 渲染能力)
-            with st.chat_message("assistant"):
-                st.markdown(msg["content"])
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
-    if prompt := st.chat_input("Input your question..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
+    # Suggestion Chips (Feature 3)
+    # Only show if history is empty (or just welcome message)
+    if len(st.session_state.messages) <= 1:
+        st.markdown("#### 💡 You might want to ask:")
+        cols = st.columns(3)
+        suggestions = ["咱们公司的远程办公政策是啥？", "如何申请 VPN 权限？", "总结一下最新的战略规划"]
         
-        # 渲染用户新消息 (即时显示)
-        st.markdown(f"""
-        <div style="display: flex; justify-content: flex-end; align-items: flex-start; margin-bottom: 10px;">
-            <div style="background-color: #e6f3ff; color: #000; padding: 10px; border-radius: 15px; border-top-right-radius: 0; max-width: 75%; box-shadow: 1px 1px 5px rgba(0,0,0,0.1);">
-                {prompt}
-            </div>
-            <div style="min-width: 40px; height: 40px; background-color: #f0f2f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-left: 10px; font-size: 20px;">
-                👤
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        prompt_from_suggestion = None
+        for i, col in enumerate(cols):
+            if col.button(suggestions[i], key=f"sugg_{i}"):
+                prompt_from_suggestion = suggestions[i]
 
-        # 助手回答 (左侧)
+    # Chat Input
+    prompt = st.chat_input("Ask anything...")
+    
+    # Handle Input (Either from text box or suggestion click)
+    final_prompt = prompt or prompt_from_suggestion
+    
+    if final_prompt:
+        # Append User Message
+        st.session_state.messages.append({"role": "user", "content": final_prompt})
+        with st.chat_message("user"):
+            st.markdown(final_prompt)
+
+        # Assistant Response
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
+            full_response = ""
+            sources = set()
+            
+            # Chain of Thought UI (Feature 2)
+            # We use a status container that updates as we receive tool events
+            status_container = st.status("Thinking...", expanded=False)
             
             try:
-                # Load resources with visible status
-                with st.spinner("Initializing AI Engine..."):
-                    agent_graph, system_prompt, cache_collection, embeddings = init_resources(pro_mode)
+                payload = {
+                    "message": final_prompt, 
+                    "pro_mode": pro_mode,
+                    "session_id": st.session_state.session_id
+                }
                 
-                # 1. Cache Check (Hybrid Strategy)
-                cache_hit = False
+                with requests.post(f"{API_BASE_URL}/chat/stream", json=payload, stream=True) as r:
+                    if r.status_code != 200:
+                        st.error(f"Backend Error: {r.status_code} - {r.text}")
+                        status_container.update(label="Error", state="error")
+                    else:
+                        for line in r.iter_lines():
+                            if line:
+                                decoded_line = line.decode('utf-8')
+                                if decoded_line.startswith("data: "):
+                                    data_content = decoded_line[len("data: "):]
+                                    
+                                    if data_content == "[DONE]":
+                                        break
+                                    
+                                    try:
+                                        data_json = json.loads(data_content)
+                                        
+                                        # 1. Token (Text Content)
+                                        if "token" in data_json:
+                                            full_response += data_json["token"]
+                                            message_placeholder.markdown(full_response + "▌")
+                                        
+                                        # 2. Tool Start (CoT)
+                                        elif "tool_start" in data_json:
+                                            tool_name = data_json["tool_start"]
+                                            tool_input = data_json.get("input", "")
+                                            # Update status
+                                            status_container.write(f"🛠️ Using tool: **{tool_name}**")
+                                            if tool_input:
+                                                status_container.caption(f"Input: {tool_input}")
+                                        
+                                        # 3. Source Citation
+                                        elif "source" in data_json:
+                                            sources.add(data_json["source"])
+                                            
+                                        elif "error" in data_json:
+                                            st.error(f"AI Error: {data_json['error']}")
+                                            
+                                    except json.JSONDecodeError:
+                                        pass
                 
-                # A. 精确匹配 (Exact Match): 优先检查字面完全一样的问题
-                # 这能完美解决短语(如"你好")的误判，且完全免费
-                exact_match = cache_collection.get(where={"question": prompt})
-                if exact_match and exact_match['ids']:
-                    cached_answer = exact_match['metadatas'][0]['answer']
-                    message_placeholder.markdown(cached_answer + " (🚀 Cached)")
-                    full_response = cached_answer
-                    cache_hit = True
+                # Finalize UI
+                status_container.update(label="Finished!", state="complete", expanded=False)
+                message_placeholder.markdown(full_response)
                 
-                # B. 向量模糊匹配 (Vector Match): 仅针对长问题
-                if not cache_hit and len(prompt) > 10:
-                    prompt_vector = embeddings.embed_query(prompt)
-                    cache_results = cache_collection.query(query_embeddings=[prompt_vector], n_results=1)
-                    
-                    if (cache_results['ids'] and 
-                        len(cache_results['distances'][0]) > 0 and 
-                        cache_results['distances'][0][0] < 0.1):
-                        
-                        cached_answer = cache_results['metadatas'][0][0]['answer']
-                        message_placeholder.markdown(cached_answer + " (🚀 Cached)")
-                        full_response = cached_answer
-                        cache_hit = True
+                # Render Sources
+                if sources:
+                    sources_html = "<div style='font-size: 0.8em; color: gray; margin-top: 10px;'>📚 Sources: "
+                    for src in sources:
+                         sources_html += f"<span style='background-color: #f0f0f0; padding: 2px 6px; border-radius: 4px; margin-right: 5px;'>{src}</span>"
+                    sources_html += "</div>"
+                    st.markdown(sources_html, unsafe_allow_html=True)
+                    full_response += f"\n\n**Sources:** {', '.join(sources)}"
+
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
                 
-                # 2. Agent Execution
-                if not cache_hit:
-                    # 使用流式输出来降低首字延迟
-                    full_response = ""
-                    
-                    # 构造消息
-                    messages = [
-                        SystemMessage(content=system_prompt),
-                        HumanMessage(content=prompt)
-                    ]
-                    
-                    # 这里的 stream_mode="messages" 会返回每一步的消息更新
-                    stream = agent_graph.stream({"messages": messages}, stream_mode="messages")
-                    
-                    for event in stream:
-                        # event 是 (message, metadata) 元组或者直接是 message (取决于版本)
-                        # 在 LangGraph prebuilt agent 中，通常返回 (message, metadata)
-                        # 我们只关心 AIMessageChunk 且 content 不为空的部分
-                        
-                        msg_chunk, _ = event if isinstance(event, tuple) else (event, None)
-                        
-                        # 只处理来自 AI 的内容块
-                        if msg_chunk.content and msg_chunk.type == "ai":
-                            full_response += msg_chunk.content
-                            # 实时更新 UI (加个光标效果)
-                            message_placeholder.markdown(full_response + "▌")
-                    
-                    # 最终移除光标
-                    message_placeholder.markdown(full_response)
-                    
-                    # Update Cache
-                    cache_id = str(uuid.uuid4())
-                    cache_collection.add(
-                        ids=[cache_id], 
-                        embeddings=[prompt_vector], 
-                        metadatas=[{"answer": full_response, "question": prompt}]
-                    )
+                # Force rerun if using suggestion to clear button state
+                if prompt_from_suggestion:
+                    st.rerun()
 
             except Exception as e:
-                full_response = f"Error: {str(e)}"
-                message_placeholder.error(full_response)
-            
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
+                st.error(f"Connection Error: {e}")
+                status_container.update(label="Connection Failed", state="error")
 
 if __name__ == "__main__":
     main()

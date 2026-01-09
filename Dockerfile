@@ -8,7 +8,7 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# 安装系统依赖 (如果未来需要处理 PDF/OCR，可能需要 poppler-utils 等)
+# 安装系统依赖
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
@@ -17,20 +17,15 @@ RUN apt-get update && apt-get install -y \
 # 复制依赖文件
 COPY enterprise-brain/requirements.txt .
 
-# 升级 pip 并安装 Python 依赖 (使用国内镜像源)
-# 防御性修复: 强制修正可能存在的拼写错误 (duckduckgo-searchuvicorn -> 分行)
-RUN sed -i 's/duckduckgo-searchuvicorn/duckduckgo-search\nuvicorn/g' requirements.txt && \
-    pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
+# 安装依赖 (使用国内源加速)
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn -r requirements.txt
 
 # 复制项目代码
 COPY enterprise-brain/ .
 
-# 创建必要的目录 (data 和 chroma_db)
+# 创建必要的目录
 RUN mkdir -p data chroma_db
 
-# 暴露 Streamlit 默认端口
-EXPOSE 8501
-
-# 启动命令
-CMD ["streamlit", "run", "src/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+# 暴露端口 (仅作为文档)
+EXPOSE 8000 8501
