@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # 1. Enterprise Brain Services
+  # ==========================================
+  brain-frontend:
+    build: 
+      context: ./enterprise-brain
+      dockerfile: Dockerfile
+    image: enterprise-brain-frontend:latest
+    container_name: eb_frontend
+    command: streamlit run src/app.py --server.port=8501 --server.address=0.0.0.0
+    ports:
+      - "8501:8501"
+    environment:
+      - API_BASE_URL=http://brain-backend:8000/api/v1
+    depends_on:
+      - brain-backend
+    networks:
+      - ragflow-network
+
+  brain-backend:
+    build: 
+      context: ./enterprise-brain
+      dockerfile: Dockerfile
+    image: enterprise-brain-backend:latest
+    container_name: eb_backend
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+    environment:
+      - RAG_ENGINE=ragflow
+      - RAGFLOW_BASE_URL=http://ragflow-server:9380
+      - RAGFLOW_API_KEY=${RAGFLOW_API_KEY:-ragflow-default-key}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    networks:
+      - ragflow-network
+
+  # ==========================================
+  # 2. RAGFlow Core Services (Simplified)
+  # ==========================================
+  # 注意: 这是一个占位符引用。
+  # 实际部署时，我们将通过脚本下载 RAGFlow 官方的 docker-compose.yml 
+  # 并通过 COMPOSE_FILE 环境变量合并启动。
+  # 这里只定义核心依赖的空壳，确保网络互通。
+
+networks:
+  ragflow-network:
+    driver: bridge

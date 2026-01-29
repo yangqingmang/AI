@@ -18,3 +18,5 @@ pypdf
 fastapi
 python-multipart
 rank_bm25
+psutil
+markitdown

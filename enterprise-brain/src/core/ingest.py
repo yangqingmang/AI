@@ -8,6 +8,7 @@ from src.config.settings import get_settings
 from src.core.db import DBFactory
 from src.core.llm import get_embeddings
 from src.core.retriever import reset_bm25_cache
+from src.core.loader_factory import AdaptiveLoader # Import the new factory
 
 settings = get_settings()
 
@@ -122,13 +123,9 @@ def ingest_docs(progress_callback=None):
     documents = []
     for f in files_to_process:
         try:
-            ext = os.path.splitext(f)[1].lower()
-            if ext == '.pdf':
-                loader = PyPDFLoader(f)
-            else:
-                loader = TextLoader(f, encoding='utf-8')
-                
-            docs = loader.load()
+            # 使用自适应加载器 (根据硬件自动选择 MarkItDown 或 PyPDF)
+            docs = AdaptiveLoader.load(f)
+            
             current_hash = local_state[f]
 
             for doc in docs:

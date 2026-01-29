@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     CHROMA_SERVER_PORT: int = 8000
     COLLECTION_NAME: str = "enterprise_knowledge"
     CACHE_COLLECTION_NAME: str = "llm_cache"
+
+    # RAG Engine Config (Local vs RAGFlow)
+    RAG_ENGINE: str = "local"  # Options: "local", "ragflow"
+    RAGFLOW_BASE_URL: str = "http://localhost:9380"
+    RAGFLOW_API_KEY: str = "ragflow-x-api-key"
     
     # Embedding Model
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
